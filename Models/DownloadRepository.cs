@@ -28,6 +28,8 @@ namespace PzenaAssessment.Models
             _connectionString = connectionString;
         }
 
+
+
         // Method to get Download the files
         public async Task DownloadFileAsync(DownloadRequest request, string tableName, CancellationToken? cancelToken)
         {
@@ -81,6 +83,63 @@ namespace PzenaAssessment.Models
 
                 //Insert_Data(Get_CsvFile_Data(request.CsvFilePath));
                 Get_CsvFile_Data(request.CsvFilePath, tableName);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{DateTime.Now} : DOWNLOAD FAILED");
+                Console.WriteLine($"{DateTime.Now} : Error occurrred while downloading the file {request.ZipPath} ");
+                Console.WriteLine($"{DateTime.Now} : {ex.Message}");
+            }
+        }
+
+
+        public async Task Download_Prices(DownloadRequest request, CancellationToken? cancelToken)
+        {
+            try
+            {
+                string directory = Path.GetDirectoryName(request.ZipPath);
+
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                if (File.Exists(request.ZipPath))
+                {
+                    File.Delete(request.ZipPath);
+                    Console.WriteLine($"{DateTime.Now} : Deleted exisiting ZIP file from: {request.ZipPath} ");
+                }
+
+                if (File.Exists(request.CsvFilePath))
+                {
+                    File.Delete(request.CsvFilePath);
+                    Console.WriteLine($"{DateTime.Now} : Deleted exisiting CSV file from: {request.CsvFilePath} ");
+                }
+
+                using (var httpClient = new HttpClient())
+                {
+                    using (var response = await httpClient.GetAsync(request.Url, HttpCompletionOption.ResponseHeadersRead))
+                    {
+                        // Check for successful response status code (assuming authorized access)
+                        if (response.IsSuccessStatusCode)
+                        {
+                            using (var fileStream = new FileStream(request.ZipPath, FileMode.Create))
+                            {
+                                await response.Content.CopyToAsync(fileStream);
+                            }
+                        }
+                        else
+                        {
+                            Debug.WriteLine($"{DateTime.Now} : Failed to download file: {response.StatusCode}");
+                        }
+                    }
+                }
+
+                ZipFile.ExtractToDirectory(request.ZipPath, directory);
+
+
+                Console.WriteLine($"Downloaded {request.ZipPath} succesfully from {request.Url}");
+
             }
             catch (Exception ex)
             {
@@ -282,6 +341,208 @@ namespace PzenaAssessment.Models
                 }
             }
         }
+
+
+        public async Task Read_Async_Csv_By_Chunk(string filePath, int chunkSize = 1000)
+        {
+            DataTable dataTable = new DataTable();
+            dataTable.Columns.AddRange(new[]
+            {
+                new DataColumn("ticker", typeof(string)),
+                new DataColumn("date", typeof(DateTime)),
+                new DataColumn("open", typeof(decimal)),
+                new DataColumn("high", typeof(decimal)),
+                new DataColumn("low", typeof(decimal)),
+                new DataColumn("close", typeof(decimal)),
+                new DataColumn("volume", typeof(decimal)),
+                new DataColumn("closeadj", typeof(decimal)),
+                new DataColumn("closeunadj", typeof(decimal)),
+                new DataColumn("lastupdated", typeof(DateTime))
+            });
+
+            using (TextFieldParser parser = new TextFieldParser(filePath))
+            {
+                parser.TextFieldType = FieldType.Delimited;
+                parser.SetDelimiters(",");
+                parser.HasFieldsEnclosedInQuotes = true;
+
+                // Skip the header row
+                parser.ReadLine();
+
+                while (!parser.EndOfData)
+                {
+                    string[] fields = parser.ReadFields();
+                    DataRow row = dataTable.NewRow();
+
+                    row["ticker"] = fields[0];
+                    row["date"] = DateTime.TryParse(fields[1], out DateTime date) ? (object)date : DBNull.Value;
+                    row["open"] = decimal.TryParse(fields[2], out decimal open) ? (object)open : DBNull.Value;
+                    row["high"] = decimal.TryParse(fields[3], out decimal high) ? (object)high : DBNull.Value;
+                    row["low"] = decimal.TryParse(fields[4], out decimal low) ? (object)low : DBNull.Value;
+                    row["close"] = decimal.TryParse(fields[5], out decimal close) ? (object)close : DBNull.Value;
+                    row["volume"] = decimal.TryParse(fields[6], out decimal volume) ? (object)volume : DBNull.Value;
+                    row["closeadj"] = decimal.TryParse(fields[7], out decimal closeadj) ? (object)closeadj : DBNull.Value;
+                    row["closeunadj"] = decimal.TryParse(fields[8], out decimal closeunadj) ? (object)closeunadj : DBNull.Value;
+                    row["lastupdated"] = DateTime.TryParse(fields[9], out DateTime lastupdated) ? (object)lastupdated : DBNull.Value;
+
+                    dataTable.Rows.Add(row);
+
+                    if (dataTable.Rows.Count % 10000 == 0)
+                    {
+                        await InsertDataToSQLAsync(dataTable);
+                        dataTable.Clear();
+                    }
+                }
+
+                if (dataTable.Rows.Count > 0)
+                {
+                    await InsertDataToSQLAsync(dataTable);
+                }
+            }
+
+            // Insert the data into the SQL Server database table using SqlBulkCopy
+            //using (SqlConnection connection = new SqlConnection(_connectionString))
+            //{
+            //    connection.Open();
+
+            //    using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connection))
+            //    {
+            //        bulkCopy.DestinationTableName = "Prices"; // Specify the destination table name
+
+            //        // Map the columns in the DataTable to the columns in the database table
+            //        foreach (DataColumn column in dataTable.Columns)
+            //        {
+            //            bulkCopy.ColumnMappings.Add(column.ColumnName, column.ColumnName);
+            //        }
+
+            //        // Set the BatchSize (optional)
+            //        bulkCopy.BatchSize = 5000; // You can adjust the batch size according to your requirements
+
+            //        // Write the data to the SQL Server database table
+            //        bulkCopy.WriteToServer(dataTable);
+            //    }
+            //}
+            //List<List<string>> chunks = new List<List<string>>();
+
+            //List<string> currentChunk = new List<string>();
+
+            //using (StreamReader reader = new StreamReader(filePath))
+            //{
+            //    // Read the file line by line
+            //    string line;
+            //    while ((line = await reader.ReadLineAsync()) != null)
+            //    {
+            //        // Add the current line to the current chunk
+            //        currentChunk.Add(line);
+
+            //        // If the current chunk size reaches the desired chunk size, start a new chunk
+            //        if (currentChunk.Count == chunkSize)
+            //        {
+            //            chunks.Add(currentChunk);
+            //            currentChunk = new List<string>(); // Start a new chunk
+            //        }
+            //    }
+
+            //    // Add the last chunk (if it's not empty)
+            //    if (currentChunk.Count > 0)
+            //    {
+            //        chunks.Add(currentChunk);
+            //    }
+            //}
+
+            //return chunks;
+        }
+
+        private async Task InsertDataToSQLAsync(DataTable dataTable, int batchSize = 1000)
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connection))
+                {
+                    bulkCopy.DestinationTableName = "dbo.Prices";
+                    bulkCopy.BatchSize = batchSize;
+
+                    foreach (DataColumn column in dataTable.Columns)
+                    {
+                        bulkCopy.ColumnMappings.Add(column.ColumnName, column.ColumnName);
+                    }
+
+                    try
+                    {
+                        await bulkCopy.WriteToServerAsync(dataTable);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        public async Task Insert_Chunks_Into_Database(List<List<string>> chunks)
+        {
+            List<Task> insertTasks = new List<Task>();
+
+            foreach (List<string> chunk in chunks)
+            {
+                // Start a new task to insert the chunk into the database asynchronously
+                insertTasks.Add(Task.Run(async () =>
+                {
+                    using (var connection = new SqlConnection(_connectionString))
+                    {
+                        await connection.OpenAsync();
+
+                        // Perform the database insert operation for each line in the chunk
+                        foreach (string line in chunk)
+                        {
+                            // Example: Insert the line into a database table
+                            await Insert_Line_To_Database(line, connection);
+                        }
+                    }
+                }));
+            }
+
+            // Wait for all insert tasks to complete
+            await Task.WhenAll(insertTasks);
+        }
+
+        private async Task Insert_Line_To_Database(string line, SqlConnection connection)
+        {
+            try
+            {
+
+
+                string[] lineValues = line.Split(",");
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = "INSERT INTO dbo.Prices ([ticker], [date], [open], [high], [low], [close], [volume], [closeadj], [closeunadj], [lastupdated]) " +
+                    $"    VALUES (@Value1, @Value2, @Value3, @Value4, @Value5, @Value6, @Value7, @Value8, @Value9, @Value10)";
+                    // Set parameter values from the CSV line
+                    // Example: command.Parameters.AddWithValue("@Value1", value1);
+                    command.Parameters.AddWithValue("@Value1", lineValues[0]);
+                    command.Parameters.AddWithValue("@Value2", lineValues[1]);
+                    command.Parameters.AddWithValue("@Value3", lineValues[2]);
+                    command.Parameters.AddWithValue("@Value4", lineValues[3]);
+                    command.Parameters.AddWithValue("@Value5", lineValues[4]);
+                    command.Parameters.AddWithValue("@Value6", lineValues[5]);
+                    command.Parameters.AddWithValue("@Value7", lineValues[6]);
+                    command.Parameters.AddWithValue("@Value8", lineValues[7]);
+                    command.Parameters.AddWithValue("@Value9", lineValues[8]);
+                    command.Parameters.AddWithValue("@Value10", lineValues[9]);
+                    // Execute the command asynchronously
+                    await command.ExecuteNonQueryAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{DateTime.Now} : INSERT FAILED");
+                Console.WriteLine($"{DateTime.Now} : Error occurrred while atempin to insert the line {line} ");
+                Console.WriteLine($"{DateTime.Now} : {ex.Message}");
+            }
+
+        }
+
 
 
         //public async Task Load_StockData(string filePath)
