@@ -9,6 +9,6 @@ namespace PzenaAssessment.Interfaces
 {
     public interface IDownloadRepository
     {
-        Task DownloadFileAsync(DownloadRequest request, string tableName, CancellationToken cancelToken);
+        Task DownloadFileAsync(DownloadRequest request, string tableName, CancellationToken? cancelToken);
     }
 }

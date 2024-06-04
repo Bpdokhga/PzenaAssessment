@@ -17,26 +17,26 @@ public class Program
         var cancelTokenForPrices = new CancellationTokenSource();
 
 
-        cancelTokenForTickers.CancelAfter(TimeSpan.FromSeconds(30));
+        //cancelTokenForTickers.CancelAfter(TimeSpan.FromSeconds(30));
         //cancelTokenForPrices.CancelAfter(TimeSpan.FromSeconds(90));
 
 
         try
         {
-            // Download file; TICKERS.csv
-            //await repository.DownloadFileAsync(tickersRequest, "dbo.Stock_Data", cancelTokenForTickers.Token);
+            // Tickers Process
+            await repository.DownloadFileAsync(tickersRequest, "dbo.Stock_Data", cancelTokenForTickers.Token);
+            Console.WriteLine($"{DateTime.Now} : TICKERS DOWNLOADED & STORED SUCCESSFULLY");
 
-            Console.WriteLine($"{DateTime.Now}: TICKERS DOWNLOADED & STORED SUCCESSFULLY");
 
-            await repository.DownloadFileAsync(pricesRequest, "dbo.Prices", cancelTokenForTickers.Token);
-
-            Console.WriteLine($"{DateTime.Now}: PRICES DOWNLOADED & STORED SUCCESSFULLY");
+            // Prices Process
+            await repository.DownloadFileAsync(pricesRequest, "dbo.Prices", null);
+            Console.WriteLine($"{DateTime.Now} : PRICES DOWNLOADED & STORED SUCCESSFULLY");
             //await repository.DownloadFileAsync(pricesRequest, cancelTokenForTickers.Token);
 
 
             //await Task.WhenAll
             //await repository.DownloadFileAsync(pricesRequest, cancelTokenForPrices.Token);
-            Console.WriteLine($"{DateTime.Now}: FINISHED!");
+            Console.WriteLine($"{DateTime.Now}: ALL FINISHED!");
         }
         catch(OperationCanceledException opCanceledEx)
         {

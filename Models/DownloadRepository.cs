@@ -28,11 +28,11 @@ namespace PzenaAssessment.Models
             _connectionString = connectionString;
         }
 
-        public async Task DownloadFileAsync(DownloadRequest request, string tableName, CancellationToken cancelToken)
+        // Method to get Download the files
+        public async Task DownloadFileAsync(DownloadRequest request, string tableName, CancellationToken? cancelToken)
         {
             try
             {
-
                 string directory = Path.GetDirectoryName(request.ZipPath);
 
                 if (!Directory.Exists(directory))
@@ -43,13 +43,13 @@ namespace PzenaAssessment.Models
                 if (File.Exists(request.ZipPath))
                 {
                     File.Delete(request.ZipPath);
-                    Console.WriteLine($"Deleted exisiting ZIP file from: {request.ZipPath} ");
+                    Console.WriteLine($"{DateTime.Now} : Deleted exisiting ZIP file from: {request.ZipPath} ");
                 }
 
                 if (File.Exists(request.CsvFilePath))
                 {
                     File.Delete(request.CsvFilePath);
-                    Console.WriteLine($"Deleted exisiting CSV file from: {request.CsvFilePath} ");
+                    Console.WriteLine($"{DateTime.Now} : Deleted exisiting CSV file from: {request.CsvFilePath} ");
                 }
 
                 using (var httpClient = new HttpClient())
@@ -66,7 +66,7 @@ namespace PzenaAssessment.Models
                         }
                         else
                         {
-                            Debug.WriteLine($"Failed to download file: {response.StatusCode}");
+                            Debug.WriteLine($"{DateTime.Now} : Failed to download file: {response.StatusCode}");
                             // Handle unsuccessful response (e.g., authorization error, unavailable resource)
                         }
                     }
@@ -90,6 +90,7 @@ namespace PzenaAssessment.Models
             }
         }
 
+        // Method to get the .csv data as DataTable
         private void Get_CsvFile_Data(string filePath, string tableName)
         {
             DataTable tickerData = new DataTable();
@@ -179,8 +180,8 @@ namespace PzenaAssessment.Models
             }
         }
 
-
-        private void Insert_DataToSQL(DataTable csvTable, string tableName, int batchSize = 1000)
+        // Method to get the DataTable into the SQL Table
+        private void Insert_DataToSQL(DataTable csvTable, string tableName, int batchSize = 10000)
         {
             using (SqlConnection dbConnection = new SqlConnection(_connectionString))
             {
@@ -200,8 +201,8 @@ namespace PzenaAssessment.Models
                         bulk.WriteToServer(csvTable);
                         bulk.Close();
                     }
-                    //dbConnection.Close();
-                    //dbConnection.Dispose();
+                    dbConnection.Close();
+                    dbConnection.Dispose();
                 }
                 catch (Exception ex)
                 {
@@ -212,7 +213,7 @@ namespace PzenaAssessment.Models
             }
         }
 
-        private void Insert_DataToSQL(DataTable csvTable, int batchSize = 1000)
+        private void Insert_DataToSQL(DataTable csvTable, int batchSize = 10000)
         {
             using (SqlConnection dbConnection = new SqlConnection(_connectionString))
             {
@@ -232,8 +233,8 @@ namespace PzenaAssessment.Models
                         bulk.WriteToServer(csvTable);
                         bulk.Close();
                     }
-                    //dbConnection.Close();
-                    //dbConnection.Dispose();
+                    dbConnection.Close();
+                    dbConnection.Dispose();
                 }
                 catch (Exception ex)
                 {
