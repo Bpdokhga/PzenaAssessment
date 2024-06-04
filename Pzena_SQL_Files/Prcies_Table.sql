@@ -8,7 +8,7 @@ CREATE TABLE Prices (
   [high] DECIMAL(10,2),  -- High price
   [low] DECIMAL(10,2),  -- Low price
   [close] DECIMAL(10,2),  -- Closing price
-  volume BIGINT,  -- Volume traded
+  volume DECIMAL(10,2),  -- Volume traded
   closeadj DECIMAL(10,2),  -- Adjusted closing price
   closeunadj DECIMAL(10,2),  -- Unadjusted closing price
   lastupdated DATE,  -- Last date data was updated
