@@ -246,6 +246,44 @@ namespace PzenaAssessment.Models
         }
 
 
+        public void Execute_Storedprocedure(string tickerSymbol)
+        {
+            // Create a SqlConnection object
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                // Open the connection
+                connection.Open();
+
+                // Create a SqlCommand object for the stored procedure
+                using (SqlCommand command = new SqlCommand("dbo.CalculateTickerStatistics", connection))
+                {
+                    // Specify that it's a stored procedure
+                    command.CommandType = CommandType.StoredProcedure;
+
+                    command.Parameters.AddWithValue("@TickerSymbol", tickerSymbol);
+                    // Execute the stored procedure
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        // Check if the result set has rows
+                        if (reader.HasRows)
+                        {
+                            // Loop through the result set and write each row to the console
+                            while (reader.Read())
+                            {
+                                // Example: Write the first column value to the console
+                                Console.WriteLine($"{DateTime.Now} : {reader[0]}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"{DateTime.Now} : No data returned from the stored procedure.");
+                        }
+                    }
+                }
+            }
+        }
+
+
         //public async Task Load_StockData(string filePath)
         //{
         //    if (!File.Exists(filePath))

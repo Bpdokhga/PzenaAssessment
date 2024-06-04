@@ -33,6 +33,11 @@ public class Program
             Console.WriteLine($"{DateTime.Now} : PRICES DOWNLOADED & STORED SUCCESSFULLY");
             //await repository.DownloadFileAsync(pricesRequest, cancelTokenForTickers.Token);
 
+            Console.WriteLine("Please enter ticker symbol for which you want to receive statistics for: ");
+            string tickerSymbol = Console.ReadLine();
+
+            await repository.Execute_Storedprocedure(tickerSymbol);
+
 
             //await Task.WhenAll
             //await repository.DownloadFileAsync(pricesRequest, cancelTokenForPrices.Token);
