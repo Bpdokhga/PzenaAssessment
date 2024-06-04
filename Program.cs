@@ -24,7 +24,7 @@ public class Program
         try
         {
             // Tickers Process
-            //await repository.DownloadFileAsync(tickersRequest, "dbo.Stock_Data", cancelTokenForTickers.Token);
+            await repository.DownloadFileAsync(tickersRequest, "dbo.Stock_Data", cancelTokenForTickers.Token);
             Console.WriteLine($"{DateTime.Now} : TICKERS DOWNLOADED & STORED SUCCESSFULLY");
 
 

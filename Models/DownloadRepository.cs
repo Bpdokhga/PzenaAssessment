@@ -331,6 +331,9 @@ namespace PzenaAssessment.Models
                             {
                                 // Example: Write the first column value to the console
                                 Console.WriteLine($"{DateTime.Now} : {reader[0]}");
+                                Console.WriteLine($"{DateTime.Now} : {reader[1]}");
+                                Console.WriteLine($"{DateTime.Now} : {reader[2]}");
+                                Console.WriteLine($"{DateTime.Now} : {reader[3]}");
                             }
                         }
                         else
