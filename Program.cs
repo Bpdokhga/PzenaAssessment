@@ -36,7 +36,7 @@ public class Program
             Console.WriteLine("Please enter ticker symbol for which you want to receive statistics for: ");
             string tickerSymbol = Console.ReadLine();
 
-            await repository.Execute_Storedprocedure(tickerSymbol);
+            repository.Execute_Storedprocedure(tickerSymbol);
 
 
             //await Task.WhenAll
