@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 
 namespace PzenaAssessment.Models
 {
-    public class StockData : IStockData
+    public class Ticker : ITicker
     {
         public string TableName { get; set; }
         public string Permaticker { get; set; }
-        public string Ticker { get; set; }
+        public string TickerSymbol { get; set; }
         public string Name { get; set; }
         public string? Exchange { get; set; }
         public char IsDelisted { get; set; } 

@@ -1,5 +1,5 @@
-use [PzenaInterviewAssessment]
-go
+use [PzenaAssessment2]
+Go
 
 CREATE PROCEDURE CalculateTickerStatistics
     @TickerSymbol NVARCHAR(50)
@@ -16,20 +16,20 @@ BEGIN
     SELECT @MovingAverage52Days = AVG([close])
     FROM (
         SELECT TOP 52 [close]
-        FROM Prices
+        FROM Price
         WHERE ticker = @TickerSymbol
         ORDER BY date DESC
     ) AS Last52Days;
 
     -- Calculate 52-week high price
     SELECT @HighPrice52Weeks = MAX([high])
-    FROM Prices
+    FROM Price
     WHERE ticker = @TickerSymbol
       AND date >= DATEADD(WEEK, -52, GETDATE());
 
     -- Calculate 52-week low price
     SELECT @LowPrice52Weeks = MIN([low])
-    FROM Prices
+    FROM Price
     WHERE ticker = @TickerSymbol
       AND date >= DATEADD(WEEK, -52, GETDATE());
 

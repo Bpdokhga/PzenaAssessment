@@ -10,14 +10,14 @@ namespace PzenaAssessment.Models
     public class Price : IPrice
     {
         public string Ticker { get; set; } 
-        public DateTime Date { get; set; }
-        public decimal? OpenPrice { get; set; } 
-        public decimal? HighPrice { get; set; } 
-        public decimal? LowPrice { get; set; } 
-        public decimal? ClosePrice { get; set; }  
-        public long Volume { get; set; }
-        public decimal? CloseAdj { get; set; } 
-        public decimal? CloseUnadj { get; set; } 
+        public DateTime? Date { get; set; }
+        public double? OpenPrice { get; set; } 
+        public double? HighPrice { get; set; } 
+        public double? LowPrice { get; set; } 
+        public double? ClosePrice { get; set; }  
+        public double? Volume { get; set; }
+        public double? CloseAdj { get; set; } 
+        public double? CloseUnadj { get; set; } 
         public DateTime? LastUpdated { get; set; }
     }
 }

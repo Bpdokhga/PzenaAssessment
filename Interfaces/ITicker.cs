@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PzenaAssessment.Interfaces
 {
-    public interface IStockData
+    public interface ITicker
     {
     }
 }

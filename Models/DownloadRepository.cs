@@ -79,9 +79,7 @@ namespace PzenaAssessment.Models
 
                 Console.WriteLine($"Downloaded {request.ZipPath} succesfully from {request.Url}");
 
-
-
-                //Insert_Data(Get_CsvFile_Data(request.CsvFilePath));
+                //await Read_Prices_Async_Csv_By_Chunk(request.CsvFilePath, 5000);
                 Get_CsvFile_Data(request.CsvFilePath, tableName);
             }
             catch (Exception ex)
@@ -92,7 +90,7 @@ namespace PzenaAssessment.Models
             }
         }
 
-
+        // 
         public async Task Download_Prices(DownloadRequest request, CancellationToken? cancelToken)
         {
             try
@@ -150,6 +148,7 @@ namespace PzenaAssessment.Models
         }
 
         // Method to get the .csv data as DataTable
+        // Very costly as DataTable is in-memory
         private void Get_CsvFile_Data(string filePath, string tableName)
         {
             DataTable tickerData = new DataTable();
@@ -182,54 +181,7 @@ namespace PzenaAssessment.Models
                     //csvReader.Close();
                     //csvReader.Dispose();
                 }
-                //using (var reader = new StreamReader(filePath))
-                //using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
-                //{
-                //    //reader.ReadLine();
-                //    using (var dr = new CsvDataReader(csv))
-                //    {
-                //        tickerData.Load(dr);
-                //    }
-                //    //while (csv.Read())
-                //    //{
-                //    //    var stockDataItem = new StockData
-                //    //    {
-                //    //        TableName = csv.GetField(0),
-                //    //        Permaticker = csv.GetField(1),
-                //    //        Ticker = csv.GetField(2),
-                //    //        Name = csv.GetField(3),
-                //    //        Exchange = csv.GetField(4),
-                //    //        IsDelisted = Char.Parse(csv.GetField(5)) != null ? Char.Parse(csv.GetField(5)) : '\0',
-                //    //        Category = csv.GetField(6) != null ? csv.GetField(6).Trim() : null,
-                //    //        Cusips = csv.GetField(7) != null ? csv.GetField(7).Trim() : null,
-                //    //        SicCode = csv.GetField(8) != null ? csv.GetField(8).Trim() : null,
-                //    //        SicSector = csv.GetField(9) != null ? csv.GetField(9).Trim() : null,
-                //    //        SicIndustry = csv.GetField(10) != null ? csv.GetField(10).Trim() : null,
-                //    //        FamaSector = csv.GetField(11) != null ? csv.GetField(11).Trim() : null,
-                //    //        FamaIndustry = csv.GetField(12) != null ? csv.GetField(12).Trim() : null,
-                //    //        Sector = csv.GetField(13) != null ? csv.GetField(13).Trim() : null,
-                //    //        Industry = csv.GetField(14) != null ? csv.GetField(14).Trim() : null,
-                //    //        ScaleMarketCap = csv.GetField(15) != null ? csv.GetField(15).Trim() : null,
-                //    //        ScaleRevenue = csv.GetField(16) != null ? csv.GetField(16).Trim() : null,
-                //    //        RelatedTickers = csv.GetField(17) != null ? csv.GetField(17).Trim() : null,
-                //    //        Currency = csv.GetField(18) != null ? csv.GetField(18).Trim() : null,
-                //    //        Location = csv.GetField(19) != null ? csv.GetField(19).Trim() : null,
-                //    //        LastUpdated = DateTime.Parse(csv.GetField(20)) != null? DateTime.TryParse(csv.GetField(20), DateTime.de) : null,
-                //    //        FirstAdded = DateTime.Parse(csv.GetField(21)) != null? DateTime.Parse(csv.GetField(21)) : null,
-                //    //        FirstPriceDate = DateTime.Parse(csv.GetField(22)) != null ? DateTime.Parse(csv.GetField(22)) : null,
-                //    //        LastPriceDate = DateTime.Parse(csv.GetField(23)) != null ? DateTime.Parse(csv.GetField(23)) : null,
-                //    //        FirstQuarter = DateTime.Parse(csv.GetField(24)) != null ? DateTime.Parse(csv.GetField(24)) : null,
-                //    //        LastQuarter = DateTime.Parse(csv.GetField(25)) != null ? DateTime.Parse(csv.GetField(25)) : null,
-                //    //        SecFilings = csv.GetField(26) != null ? csv.GetField(26).Trim() : null,
-                //    //        CompanySite = csv.GetField(27) != null ? csv.GetField(27).Trim() : null,
-                //    //    };
-                //    //    stockDataFromFile.Add(stockDataItem);
-                //    //}
-                //}
-                if (tableName != "dbo.Prices")
-                    Insert_DataToSQL(tickerData, tableName, 5000);
-                else
-                    Insert_DataToSQL(tickerData, 10000);
+                Insert_DataToSQL(tickerData, tableName, 5000);
             }
             catch (Exception ex)
             {
@@ -238,6 +190,170 @@ namespace PzenaAssessment.Models
                 Console.WriteLine($"{DateTime.Now} : {ex.Message}");
             }
         }
+
+        public async Task Read_Prices_Async_Csv_By_Chunk(string filePath, int chunkSize = 1000)
+        {
+            List<Price> priceList = new List<Price>();
+
+            using (TextFieldParser parser = new TextFieldParser(filePath))
+            {
+                parser.TextFieldType = FieldType.Delimited;
+                parser.SetDelimiters(",");
+                parser.HasFieldsEnclosedInQuotes = true;
+
+                // Skip the header row
+                parser.ReadLine();
+
+                while (!parser.EndOfData)
+                {
+                    string[] fields = parser.ReadFields();
+
+                    Price stockData = new Price
+                    {
+                        Ticker = fields[0],
+                        Date = DateTime.TryParse(fields[1], out DateTime date) ? date : (DateTime?)null,
+                        OpenPrice = double.TryParse(fields[2], out double open) ? open : (double?)null,
+                        HighPrice = double.TryParse(fields[3], out double high) ? high : (double?)null,
+                        LowPrice = double.TryParse(fields[4], out double low) ? low : (double?)null,
+                        ClosePrice = double.TryParse(fields[5], out double close) ? close : (double?)null,
+                        Volume = double.TryParse(fields[6], out double volume) ? volume : (double?)null,
+                        CloseAdj = double.TryParse(fields[7], out double closeadj) ? closeadj : (double?)null,
+                        CloseUnadj = double.TryParse(fields[8], out double closeunadj) ? closeunadj : (double?)null,
+                        LastUpdated = DateTime.TryParse(fields[9], out DateTime lastupdated) ? lastupdated : (DateTime?)null
+                    };
+
+                    priceList.Add(stockData);
+
+                    if (priceList.Count % chunkSize == 0)
+                    {
+                        await InsertDataToSQLAsync(priceList);
+                        priceList.Clear();
+                    }
+                }
+
+                if (priceList.Count > 0)
+                {
+                    await InsertDataToSQLAsync(priceList);
+                }
+            }
+        }
+
+        public async Task InsertDataToSQLAsync(List<Price> priceList)
+        {
+            string connectionString = $"{_connectionString}";
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                await connection.OpenAsync();
+
+                using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connection))
+                {
+                    bulkCopy.DestinationTableName = "dbo.Price";
+
+                    using (var reader = new PriceDataReader(priceList))
+                    {
+                        await bulkCopy.WriteToServerAsync(reader);
+                    }
+                }
+            }
+        }
+
+        // Works but only 10 rows at a time
+
+        //public async Task InsertDataToSQLAsync(List<Price> priceList, int batchSize = 10)
+        //{
+        //    string connectionString = $"{_connectionString}";
+
+        //    StringBuilder insertQuery = new StringBuilder();
+        //    insertQuery.AppendLine("INSERT INTO dbo.Price ([Ticker], [Date], [Open], [High], [Low], [Close], [Volume], [CloseAdj], [CloseUnadj], [LastUpdated])");
+        //    insertQuery.AppendLine("VALUES");
+
+        //    using (SqlConnection connection = new SqlConnection(connectionString))
+        //    {
+        //        await connection.OpenAsync();
+
+        //        int count = 0;
+        //        foreach (Price price in priceList)
+        //        {
+        //            insertQuery.AppendLine($"(@Ticker{count}, @Date{count}, @Open{count}, @High{count}, @Low{count}, @Close{count}, @Volume{count}, @CloseAdj{count}, @CloseUnadj{count}, @LastUpdated{count})");
+
+        //            count++;
+
+        //            if (count % batchSize == 0 || count == priceList.Count)
+        //            {
+        //                using (SqlCommand command = new SqlCommand(insertQuery.ToString(), connection))
+        //                {
+        //                    for (int i = 0; i < count; i++)
+        //                    {
+        //                        Price currentPrice = priceList[i];
+
+        //                        command.Parameters.AddWithValue($"@Ticker{i}", currentPrice.Ticker);
+        //                        command.Parameters.AddWithValue($"@Date{i}", currentPrice.Date);
+        //                        command.Parameters.AddWithValue($"@Open{i}", currentPrice.OpenPrice ?? (object)DBNull.Value);
+        //                        command.Parameters.AddWithValue($"@High{i}", currentPrice.HighPrice ?? (object)DBNull.Value);
+        //                        command.Parameters.AddWithValue($"@Low{i}", currentPrice.LowPrice ?? (object)DBNull.Value);
+        //                        command.Parameters.AddWithValue($"@Close{i}", currentPrice.ClosePrice ?? (object)DBNull.Value);
+        //                        command.Parameters.AddWithValue($"@Volume{i}", currentPrice.Volume ?? (object)DBNull.Value);
+        //                        command.Parameters.AddWithValue($"@CloseAdj{i}", currentPrice.CloseAdj ?? (object)DBNull.Value);
+        //                        command.Parameters.AddWithValue($"@CloseUnadj{i}", currentPrice.CloseUnadj ?? (object)DBNull.Value);
+        //                        command.Parameters.AddWithValue($"@LastUpdated{i}", currentPrice.LastUpdated);
+        //                    }
+
+        //                    await command.ExecuteNonQueryAsync();
+        //                }
+
+        //                // Reset the string builder for the next batch
+        //                insertQuery.Clear();
+        //                insertQuery.AppendLine("INSERT INTO dbo.Price ([Ticker], [Date], [Open], [High], [Low], [Close], [Volume], [CloseAdj], [CloseUnadj], [LastUpdated])");
+        //                insertQuery.AppendLine("VALUES");
+        //            }
+        //            else
+        //            {
+        //                insertQuery.AppendLine(",");
+        //            }
+        //        }
+        //    }
+        //}
+
+
+        // WORKS 1 at a time I believe however//
+        //public async Task InsertDataToSQLAsync(List<Price> priceList, int batchSize = 1000)
+        //{
+        //    string connectionString = $"{_connectionString}";
+
+        //    string insertQuery = @"INSERT INTO dbo.Price ([Ticker], [Date], [Open], [High], [Low], [Close], Volume, CloseAdj, CloseUnadj, LastUpdated) 
+        //                   VALUES (@Ticker, @Date, @Open, @High, @Low, @Close, @Volume, @CloseAdj, @CloseUnadj, @LastUpdated)";
+
+        //    using (SqlConnection connection = new SqlConnection(connectionString))
+        //    {
+        //        connection.Open();
+
+        //        for (int i = 0; i < priceList.Count; i += batchSize)
+        //        {
+        //            List<Price> batch = priceList.GetRange(i, Math.Min(batchSize, priceList.Count - i));
+
+        //            using (SqlCommand command = new SqlCommand(insertQuery, connection))
+        //            {
+        //                foreach (Price price in batch)
+        //                {
+        //                    command.Parameters.Clear();
+        //                    command.Parameters.AddWithValue("@Ticker", price.Ticker);
+        //                    command.Parameters.AddWithValue("@Date", price.Date);
+        //                    command.Parameters.AddWithValue("@Open", price.OpenPrice ?? (object)DBNull.Value);
+        //                    command.Parameters.AddWithValue("@High", price.HighPrice ?? (object)DBNull.Value);
+        //                    command.Parameters.AddWithValue("@Low", price.LowPrice ?? (object)DBNull.Value);
+        //                    command.Parameters.AddWithValue("@Close", price.ClosePrice ?? (object)DBNull.Value);
+        //                    command.Parameters.AddWithValue("@Volume", price.Volume ?? (object)DBNull.Value);
+        //                    command.Parameters.AddWithValue("@CloseAdj", price.CloseAdj ?? (object)DBNull.Value);
+        //                    command.Parameters.AddWithValue("@CloseUnadj", price.CloseUnadj ?? (object)DBNull.Value);
+        //                    command.Parameters.AddWithValue("@LastUpdated", price.LastUpdated);
+
+        //                    await command.ExecuteNonQueryAsync();
+        //                }
+        //            }
+        //        }
+        //    }
+        //}
 
         // Method to get the DataTable into the SQL Table
         private void Insert_DataToSQL(DataTable csvTable, string tableName, int batchSize = 10000)
@@ -283,7 +399,7 @@ namespace PzenaAssessment.Models
                     using (SqlBulkCopy bulk = new SqlBulkCopy(dbConnection))
                     {
                         //bulk.DestinationTableName = "dbo.Stock_Data";
-                        bulk.DestinationTableName = "dbo.Stock_Data";
+                        bulk.DestinationTableName = "dbo.Ticker";
                         bulk.BatchSize = batchSize;
                         //foreach (var column in csvTable.Columns)
                         //{
@@ -346,124 +462,72 @@ namespace PzenaAssessment.Models
         }
 
 
-        public async Task Read_Async_Csv_By_Chunk(string filePath, int chunkSize = 1000)
-        {
-            DataTable dataTable = new DataTable();
-            dataTable.Columns.AddRange(new[]
-            {
-                new DataColumn("ticker", typeof(string)),
-                new DataColumn("date", typeof(DateTime)),
-                new DataColumn("open", typeof(decimal)),
-                new DataColumn("high", typeof(decimal)),
-                new DataColumn("low", typeof(decimal)),
-                new DataColumn("close", typeof(decimal)),
-                new DataColumn("volume", typeof(decimal)),
-                new DataColumn("closeadj", typeof(decimal)),
-                new DataColumn("closeunadj", typeof(decimal)),
-                new DataColumn("lastupdated", typeof(DateTime))
-            });
+        //public async Task Read_Async_Csv_By_Chunk(string filePath, int chunkSize = 1000)
+        //{
+        //    DataTable dataTable = new DataTable();
+        //    dataTable.Columns.AddRange(new[]
+        //    {
+        //        new DataColumn("ticker", typeof(string)),
+        //        new DataColumn("date", typeof(DateTime)),
+        //        new DataColumn("open", typeof(decimal)),
+        //        new DataColumn("high", typeof(decimal)),
+        //        new DataColumn("low", typeof(decimal)),
+        //        new DataColumn("close", typeof(decimal)),
+        //        new DataColumn("volume", typeof(decimal)),
+        //        new DataColumn("closeadj", typeof(decimal)),
+        //        new DataColumn("closeunadj", typeof(decimal)),
+        //        new DataColumn("lastupdated", typeof(DateTime))
+        //    });
 
-            using (TextFieldParser parser = new TextFieldParser(filePath))
-            {
-                parser.TextFieldType = FieldType.Delimited;
-                parser.SetDelimiters(",");
-                parser.HasFieldsEnclosedInQuotes = true;
+        //    using (TextFieldParser parser = new TextFieldParser(filePath))
+        //    {
+        //        parser.TextFieldType = FieldType.Delimited;
+        //        parser.SetDelimiters(",");
+        //        parser.HasFieldsEnclosedInQuotes = true;
 
-                // Skip the header row
-                parser.ReadLine();
+        //        // Skip the header row
+        //        parser.ReadLine();
 
-                while (!parser.EndOfData)
-                {
-                    string[] fields = parser.ReadFields();
-                    DataRow row = dataTable.NewRow();
+        //        while (!parser.EndOfData)
+        //        {
+        //            string[] fields = parser.ReadFields();
+        //            DataRow row = dataTable.NewRow();
 
-                    row["ticker"] = fields[0];
-                    row["date"] = DateTime.TryParse(fields[1], out DateTime date) ? (object)date : DBNull.Value;
-                    row["open"] = decimal.TryParse(fields[2], out decimal open) ? (object)open : DBNull.Value;
-                    row["high"] = decimal.TryParse(fields[3], out decimal high) ? (object)high : DBNull.Value;
-                    row["low"] = decimal.TryParse(fields[4], out decimal low) ? (object)low : DBNull.Value;
-                    row["close"] = decimal.TryParse(fields[5], out decimal close) ? (object)close : DBNull.Value;
-                    row["volume"] = decimal.TryParse(fields[6], out decimal volume) ? (object)volume : DBNull.Value;
-                    row["closeadj"] = decimal.TryParse(fields[7], out decimal closeadj) ? (object)closeadj : DBNull.Value;
-                    row["closeunadj"] = decimal.TryParse(fields[8], out decimal closeunadj) ? (object)closeunadj : DBNull.Value;
-                    row["lastupdated"] = DateTime.TryParse(fields[9], out DateTime lastupdated) ? (object)lastupdated : DBNull.Value;
+        //            row["ticker"] = fields[0];
+        //            row["date"] = DateTime.TryParse(fields[1], out DateTime date) ? (object)date : DBNull.Value;
+        //            row["open"] = decimal.TryParse(fields[2], out decimal open) ? (object)open : DBNull.Value;
+        //            row["high"] = decimal.TryParse(fields[3], out decimal high) ? (object)high : DBNull.Value;
+        //            row["low"] = decimal.TryParse(fields[4], out decimal low) ? (object)low : DBNull.Value;
+        //            row["close"] = decimal.TryParse(fields[5], out decimal close) ? (object)close : DBNull.Value;
+        //            row["volume"] = decimal.TryParse(fields[6], out decimal volume) ? (object)volume : DBNull.Value;
+        //            row["closeadj"] = decimal.TryParse(fields[7], out decimal closeadj) ? (object)closeadj : DBNull.Value;
+        //            row["closeunadj"] = decimal.TryParse(fields[8], out decimal closeunadj) ? (object)closeunadj : DBNull.Value;
+        //            row["lastupdated"] = DateTime.TryParse(fields[9], out DateTime lastupdated) ? (object)lastupdated : DBNull.Value;
 
-                    dataTable.Rows.Add(row);
+        //            dataTable.Rows.Add(row);
 
-                    if (dataTable.Rows.Count % 10000 == 0)
-                    {
-                        await InsertDataToSQLAsync(dataTable);
-                        dataTable.Clear();
-                    }
-                }
+        //            if (dataTable.Rows.Count % 10000 == 0)
+        //            {
+        //                await InsertDataToSQLAsync(dataTable);
+        //                dataTable.Clear();
+        //            }
+        //        }
 
-                if (dataTable.Rows.Count > 0)
-                {
-                    await InsertDataToSQLAsync(dataTable);
-                }
-            }
+        //        if (dataTable.Rows.Count > 0)
+        //        {
+        //            await InsertDataToSQLAsync(dataTable);
+        //        }
+        //    }
+        //}
 
-            // Insert the data into the SQL Server database table using SqlBulkCopy
-            //using (SqlConnection connection = new SqlConnection(_connectionString))
-            //{
-            //    connection.Open();
-
-            //    using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connection))
-            //    {
-            //        bulkCopy.DestinationTableName = "Prices"; // Specify the destination table name
-
-            //        // Map the columns in the DataTable to the columns in the database table
-            //        foreach (DataColumn column in dataTable.Columns)
-            //        {
-            //            bulkCopy.ColumnMappings.Add(column.ColumnName, column.ColumnName);
-            //        }
-
-            //        // Set the BatchSize (optional)
-            //        bulkCopy.BatchSize = 5000; // You can adjust the batch size according to your requirements
-
-            //        // Write the data to the SQL Server database table
-            //        bulkCopy.WriteToServer(dataTable);
-            //    }
-            //}
-            //List<List<string>> chunks = new List<List<string>>();
-
-            //List<string> currentChunk = new List<string>();
-
-            //using (StreamReader reader = new StreamReader(filePath))
-            //{
-            //    // Read the file line by line
-            //    string line;
-            //    while ((line = await reader.ReadLineAsync()) != null)
-            //    {
-            //        // Add the current line to the current chunk
-            //        currentChunk.Add(line);
-
-            //        // If the current chunk size reaches the desired chunk size, start a new chunk
-            //        if (currentChunk.Count == chunkSize)
-            //        {
-            //            chunks.Add(currentChunk);
-            //            currentChunk = new List<string>(); // Start a new chunk
-            //        }
-            //    }
-
-            //    // Add the last chunk (if it's not empty)
-            //    if (currentChunk.Count > 0)
-            //    {
-            //        chunks.Add(currentChunk);
-            //    }
-            //}
-
-            //return chunks;
-        }
-
-        private async Task InsertDataToSQLAsync(DataTable dataTable, int batchSize = 1000)
+        public async Task InsertDataToSQLAsync(DataTable dataTable, int batchSize = 10000)
         {
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
                 using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connection))
                 {
-                    bulkCopy.DestinationTableName = "dbo.Prices";
+                    bulkCopy.DestinationTableName = "dbo.Price";
                     bulkCopy.BatchSize = batchSize;
 
                     foreach (DataColumn column in dataTable.Columns)
@@ -510,7 +574,7 @@ namespace PzenaAssessment.Models
             await Task.WhenAll(insertTasks);
         }
 
-        private async Task Insert_Line_To_Database(string line, SqlConnection connection)
+        public async Task Insert_Line_To_Database(string line, SqlConnection connection)
         {
             try
             {

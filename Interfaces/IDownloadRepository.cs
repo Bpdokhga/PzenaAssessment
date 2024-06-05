@@ -14,7 +14,5 @@ namespace PzenaAssessment.Interfaces
 
         Task Download_Prices(DownloadRequest request, CancellationToken? cancelToken);
 
-        Task Read_Async_Csv_By_Chunk(string filePath, int chunkSize = 1000);
-
     }
 }

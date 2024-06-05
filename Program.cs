@@ -24,21 +24,18 @@ public class Program
         try
         {
             // Tickers Process
-            await repository.DownloadFileAsync(tickersRequest, "dbo.Stock_Data", cancelTokenForTickers.Token);
-            Console.WriteLine($"{DateTime.Now} : TICKERS DOWNLOADED & STORED SUCCESSFULLY");
+            //await repository.DownloadFileAsync(tickersRequest, "dbo.Ticker", cancelTokenForTickers.Token);
+            //Console.WriteLine($"{DateTime.Now} : TICKERS DOWNLOADED & STORED SUCCESSFULLY");
 
 
             // Prices Process
             //await repository.DownloadFileAsync(pricesRequest, "dbo.Prices", null);
-            await repository.Download_Prices(pricesRequest, null);
-            Console.WriteLine($"{DateTime.Now} : PRICES DOWNLOADED SUCCESSFULLY");
+            //await repository.Download_Prices(pricesRequest, null);
+            //Console.WriteLine($"{DateTime.Now} : PRICES DOWNLOADED SUCCESSFULLY");
 
-            await repository.Read_Async_Csv_By_Chunk(pricesRequest.CsvFilePath, 5000);
-            Console.WriteLine($"{DateTime.Now} : CHUNKS CREATED SUCCESSFULLY");
+            //await repository.Read_Prices_Async_Csv_By_Chunk(pricesRequest.CsvFilePath, 5000);
+            //Console.WriteLine($"{DateTime.Now} : PRICES READ SUCCESSFULLY");
 
-            //await repository.Insert_Chunks_Into_Database(chunks);
-            //Console.WriteLine($"{DateTime.Now} : DATA INSERTED INTO SQL SUCCESSFULLY");
-            //await repository.DownloadFileAsync(pricesRequest, cancelTokenForTickers.Token);
 
             Console.WriteLine("Please enter ticker symbol for which you want to receive statistics for: ");
             string tickerSymbol = Console.ReadLine();
