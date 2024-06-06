@@ -31,6 +31,7 @@ namespace PzenaAssessment.Models
 
 
         // Method to get Download the files
+        // Seperate Tickers Download
         public async Task DownloadFileAsync(DownloadRequest request, string tableName, CancellationToken? cancelToken)
         {
             try
@@ -72,6 +73,7 @@ namespace PzenaAssessment.Models
                             // Handle unsuccessful response (e.g., authorization error, unavailable resource)
                         }
                     }
+                    httpClient.Dispose();
                 }
 
                 ZipFile.ExtractToDirectory(request.ZipPath, directory);
@@ -79,7 +81,6 @@ namespace PzenaAssessment.Models
 
                 Console.WriteLine($"Downloaded {request.ZipPath} succesfully from {request.Url}");
 
-                //await Read_Prices_Async_Csv_By_Chunk(request.CsvFilePath, 5000);
                 Get_CsvFile_Data(request.CsvFilePath, tableName);
             }
             catch (Exception ex)
@@ -90,7 +91,7 @@ namespace PzenaAssessment.Models
             }
         }
 
-        // 
+        // Seperate Prices Download
         public async Task Download_Prices(DownloadRequest request, CancellationToken? cancelToken)
         {
             try
@@ -131,6 +132,7 @@ namespace PzenaAssessment.Models
                             Debug.WriteLine($"{DateTime.Now} : Failed to download file: {response.StatusCode}");
                         }
                     }
+                    httpClient.Dispose();
                 }
 
                 ZipFile.ExtractToDirectory(request.ZipPath, directory);
@@ -178,8 +180,8 @@ namespace PzenaAssessment.Models
                         }
                         tickerData.Rows.Add(fieldData);
                     }
-                    //csvReader.Close();
-                    //csvReader.Dispose();
+                    csvReader.Close();
+                    csvReader.Dispose();
                 }
                 Insert_DataToSQL(tickerData, tableName, 5000);
             }
@@ -191,6 +193,10 @@ namespace PzenaAssessment.Models
             }
         }
 
+        // Working for Pirces
+        // Using a CustomCsvReader for Prices specifically
+        // Loads a List and sens that list to 
+        // be insertd into Database
         public async Task Read_Prices_Async_Csv_By_Chunk(string filePath, int chunkSize = 1000)
         {
             List<Price> priceList = new List<Price>();
@@ -235,9 +241,14 @@ namespace PzenaAssessment.Models
                 {
                     await InsertDataToSQLAsync(priceList);
                 }
+                parser.Close();
+                parser.Dispose();
             }
         }
 
+        // Working for Prices
+        // Insert method for inserting Prices data into SQL.
+        // Takes a List<Price> and inserts
         public async Task InsertDataToSQLAsync(List<Price> priceList)
         {
             string connectionString = $"{_connectionString}";
@@ -255,8 +266,96 @@ namespace PzenaAssessment.Models
                         await bulkCopy.WriteToServerAsync(reader);
                     }
                 }
+                connection.Close();
+                connection.Dispose();
             }
         }
+
+        // Takes a dataTable
+        // Inserts it into SQL
+        // In efficient; possible corruption issues
+        // Prices insert would take too lon
+        private void Insert_DataToSQL(DataTable csvTable, string tableName, int batchSize = 10000)
+        {
+            using (SqlConnection dbConnection = new SqlConnection(_connectionString))
+            {
+                dbConnection.Open();
+
+                try
+                {
+                    using (SqlBulkCopy bulk = new SqlBulkCopy(dbConnection))
+                    {
+                        bulk.DestinationTableName = tableName;
+                        bulk.BatchSize = batchSize;
+
+                        bulk.WriteToServer(csvTable);
+                        bulk.Close();
+                    }
+                    dbConnection.Close();
+                    dbConnection.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"{DateTime.Now} : Error in the transaction.");
+                    Console.WriteLine($"{DateTime.Now} : {ex.Message}");
+                    //transaction.Rollback();
+                }
+            }
+        }
+
+        // Execute Stored procedure
+        // Requires a Ticker symbol as parameter to get the statistics for.
+        public void Execute_Storedprocedure(string tickerSymbol)
+        {
+            // Create a SqlConnection object
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                // Open the connection
+                connection.Open();
+
+                // Create a SqlCommand object for the stored procedure
+                using (SqlCommand command = new SqlCommand("dbo.CalculateTickerStatistics", connection))
+                {
+                    // Specify that it's a stored procedure
+                    command.CommandType = CommandType.StoredProcedure;
+
+                    command.Parameters.AddWithValue("@Ticker", tickerSymbol);
+                    // Execute the stored procedure
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        // Check if the result set has rows
+                        if (reader.HasRows)
+                        {
+                            // Loop through the result set and write each row to the console
+                            while (reader.Read())
+                            {
+                                // Example: Write the first column value to the console
+                                Console.WriteLine($"{DateTime.Now} : {reader[0]}");
+                                Console.WriteLine($"{DateTime.Now} : {reader[1]}");
+                                Console.WriteLine($"{DateTime.Now} : {reader[2]}");
+                                Console.WriteLine($"{DateTime.Now} : {reader[3]}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"{DateTime.Now} : No data returned from the stored procedure.");
+                        }
+                    }
+
+                }
+                connection.Close();
+                connection.Dispose();
+            }
+        }
+
+
+
+
+
+
+
+
+        // COMMENTED OUT; PREVIOUS ITERATIONS
 
         // Works but only 10 rows at a time
 
@@ -354,114 +453,6 @@ namespace PzenaAssessment.Models
         //        }
         //    }
         //}
-
-        // Method to get the DataTable into the SQL Table
-        private void Insert_DataToSQL(DataTable csvTable, string tableName, int batchSize = 10000)
-        {
-            using (SqlConnection dbConnection = new SqlConnection(_connectionString))
-            {
-                dbConnection.Open();
-
-                try
-                {
-                    using (SqlBulkCopy bulk = new SqlBulkCopy(dbConnection))
-                    {
-                        //bulk.DestinationTableName = "dbo.Stock_Data";
-                        bulk.DestinationTableName = tableName;
-                        bulk.BatchSize = batchSize;
-                        //foreach (var column in csvTable.Columns)
-                        //{
-                        //    bulk.ColumnMappings.Add(column.ToString(), column.ToString());
-                        //}
-                        bulk.WriteToServer(csvTable);
-                        bulk.Close();
-                    }
-                    dbConnection.Close();
-                    dbConnection.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"{DateTime.Now} : Error in the transaction.");
-                    Console.WriteLine($"{DateTime.Now} : {ex.Message}");
-                    //transaction.Rollback();
-                }
-            }
-        }
-
-        private void Insert_DataToSQL(DataTable csvTable, int batchSize = 10000)
-        {
-            using (SqlConnection dbConnection = new SqlConnection(_connectionString))
-            {
-                dbConnection.Open();
-
-                try
-                {
-                    using (SqlBulkCopy bulk = new SqlBulkCopy(dbConnection))
-                    {
-                        //bulk.DestinationTableName = "dbo.Stock_Data";
-                        bulk.DestinationTableName = "dbo.Ticker";
-                        bulk.BatchSize = batchSize;
-                        //foreach (var column in csvTable.Columns)
-                        //{
-                        //    bulk.ColumnMappings.Add(column.ToString(), column.ToString());
-                        //}
-                        bulk.WriteToServer(csvTable);
-                        bulk.Close();
-                    }
-                    dbConnection.Close();
-                    dbConnection.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"{DateTime.Now} : Error in the transaction.");
-                    Console.WriteLine($"{DateTime.Now} : {ex.Message}");
-                    //transaction.Rollback();
-                }
-            }
-        }
-
-
-        public void Execute_Storedprocedure(string tickerSymbol)
-        {
-            // Create a SqlConnection object
-            using (SqlConnection connection = new SqlConnection(_connectionString))
-            {
-                // Open the connection
-                connection.Open();
-
-                // Create a SqlCommand object for the stored procedure
-                using (SqlCommand command = new SqlCommand("dbo.CalculateTickerStatistics", connection))
-                {
-                    // Specify that it's a stored procedure
-                    command.CommandType = CommandType.StoredProcedure;
-
-                    command.Parameters.AddWithValue("@TickerSymbol", tickerSymbol);
-                    // Execute the stored procedure
-                    using (SqlDataReader reader = command.ExecuteReader())
-                    {
-                        // Check if the result set has rows
-                        if (reader.HasRows)
-                        {
-                            // Loop through the result set and write each row to the console
-                            while (reader.Read())
-                            {
-                                // Example: Write the first column value to the console
-                                Console.WriteLine($"{DateTime.Now} : {reader[0]}");
-                                Console.WriteLine($"{DateTime.Now} : {reader[1]}");
-                                Console.WriteLine($"{DateTime.Now} : {reader[2]}");
-                                Console.WriteLine($"{DateTime.Now} : {reader[3]}");
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"{DateTime.Now} : No data returned from the stored procedure.");
-                        }
-                    }
-                }
-            }
-        }
-
-
         //public async Task Read_Async_Csv_By_Chunk(string filePath, int chunkSize = 1000)
         //{
         //    DataTable dataTable = new DataTable();
@@ -519,98 +510,7 @@ namespace PzenaAssessment.Models
         //        }
         //    }
         //}
-
-        public async Task InsertDataToSQLAsync(DataTable dataTable, int batchSize = 10000)
-        {
-            using (SqlConnection connection = new SqlConnection(_connectionString))
-            {
-                await connection.OpenAsync();
-                using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connection))
-                {
-                    bulkCopy.DestinationTableName = "dbo.Price";
-                    bulkCopy.BatchSize = batchSize;
-
-                    foreach (DataColumn column in dataTable.Columns)
-                    {
-                        bulkCopy.ColumnMappings.Add(column.ColumnName, column.ColumnName);
-                    }
-
-                    try
-                    {
-                        await bulkCopy.WriteToServerAsync(dataTable);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error: {ex.Message}");
-                    }
-                }
-            }
-        }
-
-        public async Task Insert_Chunks_Into_Database(List<List<string>> chunks)
-        {
-            List<Task> insertTasks = new List<Task>();
-
-            foreach (List<string> chunk in chunks)
-            {
-                // Start a new task to insert the chunk into the database asynchronously
-                insertTasks.Add(Task.Run(async () =>
-                {
-                    using (var connection = new SqlConnection(_connectionString))
-                    {
-                        await connection.OpenAsync();
-
-                        // Perform the database insert operation for each line in the chunk
-                        foreach (string line in chunk)
-                        {
-                            // Example: Insert the line into a database table
-                            await Insert_Line_To_Database(line, connection);
-                        }
-                    }
-                }));
-            }
-
-            // Wait for all insert tasks to complete
-            await Task.WhenAll(insertTasks);
-        }
-
-        public async Task Insert_Line_To_Database(string line, SqlConnection connection)
-        {
-            try
-            {
-
-
-                string[] lineValues = line.Split(",");
-                using (var command = connection.CreateCommand())
-                {
-                    command.CommandText = "INSERT INTO dbo.Prices ([ticker], [date], [open], [high], [low], [close], [volume], [closeadj], [closeunadj], [lastupdated]) " +
-                    $"    VALUES (@Value1, @Value2, @Value3, @Value4, @Value5, @Value6, @Value7, @Value8, @Value9, @Value10)";
-                    // Set parameter values from the CSV line
-                    // Example: command.Parameters.AddWithValue("@Value1", value1);
-                    command.Parameters.AddWithValue("@Value1", lineValues[0]);
-                    command.Parameters.AddWithValue("@Value2", lineValues[1]);
-                    command.Parameters.AddWithValue("@Value3", lineValues[2]);
-                    command.Parameters.AddWithValue("@Value4", lineValues[3]);
-                    command.Parameters.AddWithValue("@Value5", lineValues[4]);
-                    command.Parameters.AddWithValue("@Value6", lineValues[5]);
-                    command.Parameters.AddWithValue("@Value7", lineValues[6]);
-                    command.Parameters.AddWithValue("@Value8", lineValues[7]);
-                    command.Parameters.AddWithValue("@Value9", lineValues[8]);
-                    command.Parameters.AddWithValue("@Value10", lineValues[9]);
-                    // Execute the command asynchronously
-                    await command.ExecuteNonQueryAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"{DateTime.Now} : INSERT FAILED");
-                Console.WriteLine($"{DateTime.Now} : Error occurrred while atempin to insert the line {line} ");
-                Console.WriteLine($"{DateTime.Now} : {ex.Message}");
-            }
-
-        }
-
-
+        // Method to get the DataTable into the SQL Table
 
         //public async Task Load_StockData(string filePath)
         //{

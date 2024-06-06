@@ -3,6 +3,7 @@ using System.IO;
 
 public class Program
 {
+    // Main 
     public static async Task Main(string[] args)
     {
 
@@ -24,17 +25,16 @@ public class Program
         try
         {
             // Tickers Process
-            //await repository.DownloadFileAsync(tickersRequest, "dbo.Ticker", cancelTokenForTickers.Token);
-            //Console.WriteLine($"{DateTime.Now} : TICKERS DOWNLOADED & STORED SUCCESSFULLY");
+            await repository.DownloadFileAsync(tickersRequest, "dbo.Ticker", cancelTokenForTickers.Token);
+            Console.WriteLine($"{DateTime.Now} : TICKERS DOWNLOADED & STORED SUCCESSFULLY");
 
 
             // Prices Process
-            //await repository.DownloadFileAsync(pricesRequest, "dbo.Prices", null);
-            //await repository.Download_Prices(pricesRequest, null);
-            //Console.WriteLine($"{DateTime.Now} : PRICES DOWNLOADED SUCCESSFULLY");
+            await repository.Download_Prices(pricesRequest, null);
+            Console.WriteLine($"{DateTime.Now} : PRICES DOWNLOADED SUCCESSFULLY");
 
-            //await repository.Read_Prices_Async_Csv_By_Chunk(pricesRequest.CsvFilePath, 5000);
-            //Console.WriteLine($"{DateTime.Now} : PRICES READ SUCCESSFULLY");
+            await repository.Read_Prices_Async_Csv_By_Chunk(pricesRequest.CsvFilePath, 5000);
+            Console.WriteLine($"{DateTime.Now} : PRICES READ SUCCESSFULLY");
 
 
             Console.WriteLine("Please enter ticker symbol for which you want to receive statistics for: ");
@@ -43,8 +43,6 @@ public class Program
             repository.Execute_Storedprocedure(tickerSymbol);
 
 
-            //await Task.WhenAll
-            //await repository.DownloadFileAsync(pricesRequest, cancelTokenForPrices.Token);
             Console.WriteLine($"{DateTime.Now}: ALL FINISHED!");
         }
         catch(OperationCanceledException opCanceledEx)
@@ -62,7 +60,7 @@ public class Program
         Console.ReadKey();
     }
 
-
+    // Creates a Downloadrequest object
     private static DownloadRequest CreateRequest(string url, string fileName, string newFileName)
     {
         DownloadRequest request = new DownloadRequest();
@@ -74,6 +72,11 @@ public class Program
         request.CsvFilePath = Path.Combine(downloadDirectory, newFileName);
         return request;
     }
+
+    // Retreieves Connections String
+    // Ideally; thi would either be an AppSecret
+    // set by CI/CD process as environment variable
+    // for the server in which it resides; DEV/QA/PROD
     private static string Get_ConnectionString()
     {
         string connectionString = "";
