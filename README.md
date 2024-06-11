@@ -20,13 +20,14 @@ I. OVERVIEW:
       
          3.  Use ILogger functionality; since I am using a Console, I decided to Write to Console for message logs.
 
-         4.  On the data load into SQL table things cou have been done to enhance the perforance. All my attempts to try these methods failed.
+         4.  On the data load into SQL table things could have been done to enhance the perforance. All my attempts to try these methods failed.
               *  Spilt .csv's into different sectons. i.e 4 parts. Process each part and have threads do this simulataneously.
               ** Remove all Triggers/Constraints on tables;  opted to not do this since we needed to create a stored procedure as part of problem.
-              *** Ensure the clustered index is inserting new records at endof table OR move te clustered index to a column that is frequently used
+              *** Ensure the clustered index is inserting new records at end of table OR move the clustered index to a column that is frequently used
                         for ordering / joining.
-              ****  Change the recoey model of te database to be BULK_LOGGED during the load. Reduce he amount of data being logged in transaction log.
-              ***** Use TABLOCK as a query hint or enable the table optio table lock on bulk load, to hold a lock for the duration of the bulk-import operation ad reduce lock contention.
+              ****  Change the recovery model of the database to be BULK_LOGGED during the load. Reduce the amount of data being logged in transaction log.
+              ***** Use TABLOCK as a query hint or enable the table option table lock on bulk load, to hold a lock for the duration of the bulk-import operation and reduce lock contention.
+                  THIS WOULD REQUIRE STORED PROCEDURE 
               ****** Specify ORDER BY clause in the bulk insert operation if the target has a clustered index.
               
 
