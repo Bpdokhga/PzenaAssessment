@@ -197,22 +197,68 @@ namespace PzenaAssessment.Models
         // Using a CustomCsvReader for Prices specifically
         // Loads a List and sens that list to 
         // be insertd into Database
+        // Re-writting to Ommit the TextFieldParser
+        //public async Task Read_Prices_Async_Csv_By_Chunk(string filePath, int chunkSize = 1000)
+        //{
+        //    List<Price> priceList = new List<Price>();
+
+        //    using (TextFieldParser parser = new TextFieldParser(filePath))
+        //    {
+        //        parser.TextFieldType = FieldType.Delimited;
+        //        parser.SetDelimiters(",");
+        //        parser.HasFieldsEnclosedInQuotes = true;
+
+        //        // Skip the header row
+        //        parser.ReadLine();
+
+        //        while (!parser.EndOfData)
+        //        {
+        //            string[] fields = parser.ReadFields();
+
+        //            Price stockData = new Price
+        //            {
+        //                Ticker = fields[0],
+        //                Date = DateTime.TryParse(fields[1], out DateTime date) ? date : (DateTime?)null,
+        //                OpenPrice = double.TryParse(fields[2], out double open) ? open : (double?)null,
+        //                HighPrice = double.TryParse(fields[3], out double high) ? high : (double?)null,
+        //                LowPrice = double.TryParse(fields[4], out double low) ? low : (double?)null,
+        //                ClosePrice = double.TryParse(fields[5], out double close) ? close : (double?)null,
+        //                Volume = double.TryParse(fields[6], out double volume) ? volume : (double?)null,
+        //                CloseAdj = double.TryParse(fields[7], out double closeadj) ? closeadj : (double?)null,
+        //                CloseUnadj = double.TryParse(fields[8], out double closeunadj) ? closeunadj : (double?)null,
+        //                LastUpdated = DateTime.TryParse(fields[9], out DateTime lastupdated) ? lastupdated : (DateTime?)null
+        //            };
+
+        //            priceList.Add(stockData);
+
+        //            if (priceList.Count % chunkSize == 0)
+        //            {
+        //                await InsertDataToSQLAsync(priceList);
+        //                priceList.Clear();
+        //            }
+        //        }
+
+        //        if (priceList.Count > 0)
+        //        {
+        //            await InsertDataToSQLAsync(priceList);
+        //        }
+        //        parser.Close();
+        //        parser.Dispose();
+        //    }
+        //}
         public async Task Read_Prices_Async_Csv_By_Chunk(string filePath, int chunkSize = 1000)
         {
             List<Price> priceList = new List<Price>();
 
-            using (TextFieldParser parser = new TextFieldParser(filePath))
+            using (StreamReader reader = new StreamReader(filePath))
             {
-                parser.TextFieldType = FieldType.Delimited;
-                parser.SetDelimiters(",");
-                parser.HasFieldsEnclosedInQuotes = true;
-
                 // Skip the header row
-                parser.ReadLine();
+                await reader.ReadLineAsync();
 
-                while (!parser.EndOfData)
+                while (!reader.EndOfStream)
                 {
-                    string[] fields = parser.ReadFields();
+                    string line = await reader.ReadLineAsync();
+                    string[] fields = ParseCsvLine(line);
 
                     Price stockData = new Price
                     {
@@ -241,10 +287,40 @@ namespace PzenaAssessment.Models
                 {
                     await InsertDataToSQLAsync(priceList);
                 }
-                parser.Close();
-                parser.Dispose();
             }
         }
+
+        // NEEDS ParseCSVLine Method
+        private string[] ParseCsvLine(string line)
+        {
+            List<string> fields = new List<string>();
+            bool inQuotes = false;
+            string field = string.Empty;
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+
+                if (c == '"' && (i == 0 || line[i - 1] != '\\'))
+                {
+                    inQuotes = !inQuotes;
+                }
+                else if (c == ',' && !inQuotes)
+                {
+                    fields.Add(field);
+                    field = string.Empty;
+                }
+                else
+                {
+                    field += c;
+                }
+            }
+
+            fields.Add(field);
+            return fields.ToArray();
+        }
+
+
 
         // Working for Prices
         // Insert method for inserting Prices data into SQL.
